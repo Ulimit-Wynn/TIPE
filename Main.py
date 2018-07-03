@@ -3,7 +3,7 @@ import scipy.integrate as sp
 
 T = 250
 Q0 = 1
-dt = 1
+dt = 0.1
 g = 9.8
 isp = 346.8
 R = 6378100
@@ -17,23 +17,22 @@ G = 6.67408 * 10 ** (-11)
 
 
 def f(force, time, y):
-    i = int(time)
-    print(i)
+    i = int(time/dt)
     dx = y[2]
     dy = y[3]
     dvx = force[2 * i] / y[4] - np.linalg.norm(force[2 * i:2 * i + 2]) / (y[4] * g * isp) - \
           R ** 2 * g * np.cos(np.arctan2(y[1], y[0])) / (np.linalg.norm(y[0:2]) ** 2)
     dvy = force[2 * i + 1] / y[4] - np.linalg.norm(force[2 * i:2 * i + 1]) / (y[4] * g * isp) - \
           R ** 2 * g * np.sin(np.arctan2(y[1], y[0])) / (np.linalg.norm(y[0:2]) ** 2)
-    dm = np.linalg.norm(force[2 * i:2 * i + 1]) / (isp * g)
+    dm = -np.linalg.norm(force[2 * i:2 * i + 1]) / (isp * g)
     return np.array([dx, dy, dvx, dvy, dm])
 
 
-def values(force):
+def values(force, ts=None):
     def fun(time, y):
         return f(force, time, y)
 
-    return sp.solve_ivp(fun, (0, T), u0,max_step=1, min_step=1).y
+    return sp.solve_ivp(fun, (0, T), u0, t_eval=ts, max_step=1, min_step=1).y
 
 
 def q(force):
