@@ -4,15 +4,16 @@ import scipy.integrate as sp
 
 
 def du_matrices(t, force, dF):
-    i = round(t / main.dt)
+    i = int(t / main.dt)
+    u = main.values(force, ts=[t])
     Fx, Fy = force[2 * i], force[2 * i + 1]
     F = np.linalg.norm([Fx, Fy])
-    Vx, Vy = main.values(F, ts=[t])[2], main.values(F, ts=[t])[3]
-    rx, ry = main.values(F, ts=[t])[0], main.values(F, ts=[t])[1]
+    Vx, Vy = u[2], u[3]
+    rx, ry = u[0], u[1]
     R, g, isp = main.R, main.g, main.isp
 
     r = np.linalg.norm([rx, ry])
-    m = main.values(F, ts=[t])[4]
+    m = u[4]
     a = np.array([[0, 0, 1, 0, 0], [0, 0, 0, 1, 0],
                   [R ** 2 * g / (r ** 3) * (3 * rx ** 2 / (r ** 2) - 1), 3 * R ** 2 * g * rx * ry / (r ** 3),
                    -F / (m * isp * g), 0, 1 / m ** 2 * (F * Vx / (isp * g) - Fx)],
@@ -27,14 +28,16 @@ def du_matrices(t, force, dF):
 
 def f(t, du, force, dF):
     i = round(t / main.dt)
-    return du_matrices(t, force, dF)[0] @ du + du_matrices(t, force, dF) @ np.array([dF[2 * i], dF[2 * i + 1]])
+    matrices = du_matrices(t, force, dF)
+    return matrices[0] @ du + matrices[1]
 
 
 def calculate_du(force, dF):
     def func(time, du):
+        print('calculating matrices for t= ', time)
         return f(time, du, force, dF)
 
-    return np.transpose(sp.solve_ivp(func, (0, main.T), [0, 0, 0, 0, 0], t_eval=[main.T]).y)[0]
+    return np.transpose(sp.solve_ivp(func, (0, main.T), [0, 0, 0, 0, 0], t_eval=None, min_step=1).y)[0]
 
 
 def calculate_dq(values, dvalues):
@@ -54,18 +57,17 @@ def calculate_dq(values, dvalues):
     return 2 * (a - main.a0) * da / main.a0 ** 2 + 2 * (e - main.e0) * de / main.e0 ** 2
 
 
-u = np.array([122111, 500325, 1000, 1500, 50403])
-du = np.array([0.00000002, 0.00000002, 0.0000002, 0.000000001, 0])
-
-
 def grad_q(F):
+    print(F)
     u = main.final_values(F)
     df = 0.001
     n = np.size(F)
     grad = np.zeros(n)
     for i in range(0, n):
+        print('iteration number: ', i)
         dF = np.zeros(n)
         dF[i] = df
         du = calculate_du(F, dF)
         grad[i] = calculate_dq(u, du) / df
+        print('next')
     return grad

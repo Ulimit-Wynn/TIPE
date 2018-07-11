@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.integrate as sp
 
-T = 10800
+T = 1080
 Q0 = 1
 dt = 1
 g = 9.8
@@ -14,6 +14,25 @@ a0 = 25271000
 e0 = 0.66847
 M = 5.972 * 10 ** 24
 G = 6.67408 * 10 ** (-11)
+
+F0 = np.zeros(2 * (T // dt + 1))
+for i in range(T // dt + 1):
+    if i <= T // dt / 6:
+        F0[i] = np.cos(0)
+        F0[i + 1] = np.sin(0)
+    else:
+        F0[i] = np.cos(np.pi / 2)
+        F0[i + 1] = np.sin(np.pi / 2)
+
+
+def normalised(F, norm):
+    modules = np.zeros(np.size(F) // 2)
+    for i in range(0, np.size(F) // 2):
+        modules[i] = np.linalg.norm(F[2 * i: 2 * i + 2])
+    return norm / sp.trapz(F, dx=dt) * F
+
+
+F0 = normalised(F0, fuel * isp * g)
 
 
 def density(r):
@@ -37,9 +56,9 @@ def f(force, time, y):
     i = int(time / dt)
     dx = y[2]
     dy = y[3]
-    dvx = force[2 * i] / y[4] - np.linalg.norm(force[2 * i:2 * i + 2]) / (y[4] * g * isp) - \
+    dvx = force[2 * i] / y[4] - np.linalg.norm(np.array([force[2 * i], force[2 * i + 1]])) / (y[4] * g * isp) - \
           R ** 2 * g * np.cos(np.arctan2(y[1], y[0])) / (np.linalg.norm(y[0:2]) ** 3)
-    dvy = force[2 * i + 1] / y[4] - np.linalg.norm(force[2 * i:2 * i + 1]) / (y[4] * g * isp) - \
+    dvy = force[2 * i + 1] / y[4] - np.linalg.norm(np.array([force[2 * i], force[2 * i + 1]])) / (y[4] * g * isp) - \
           R ** 2 * g * np.sin(np.arctan2(y[1], y[0])) / (np.linalg.norm(y[0:2]) ** 3)
     dm = -np.linalg.norm(np.array([force[2 * i], force[2 * i + 1]])) / (isp * g)
     return np.array([dx, dy, dvx, dvy, dm])
@@ -49,7 +68,7 @@ def values(force, ts=None):
     def fun(time, y):
         return f(force, time, y)
 
-    return sp.solve_ivp(fun, (0, T), u0, t_eval=ts, max_step=10, min_step=10).y
+    return np.transpose(sp.solve_ivp(fun, (0, T), u0, t_eval=ts, max_step=10, min_step=10).y)[0]
 
 
 def final_values(force):
